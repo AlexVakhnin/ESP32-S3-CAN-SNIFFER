@@ -15,12 +15,13 @@ extern void can_clear_rx();
 
 twai_message_t rxFrame; //для приема фреймов
 
-void sendObdFrame(uint8_t obdId);
+void sendRespFrame(uint8_t obdId);
 void handle_rx_message(twai_message_t& message);
 
 //Global Variables
 unsigned long previousMillis = 0;
 unsigned long interval = 5000;  //5 sec.
+bool doSendFrame = false; //команда = послать ответ
 
 void setup() {
 
@@ -42,37 +43,39 @@ void setup() {
 
 void loop() {
 
-//Передаем пакеты CAN..
-unsigned long currentMillis = millis();
-  if (currentMillis - previousMillis >=interval) {
+  //Передаем пакеты CAN..
+  if (doSendFrame){
     if(can_tx_queue()<3){
-      sendObdFrame(5); // Передача запроса по CAN шине.
+      sendRespFrame(5); // Передача ответа по CAN шине.
     } else {
       Serial.println("CAN BUS DOWN..");
     }
-    previousMillis = currentMillis;
+    doSendFrame = false; //выполняем однократно..
   }
 
   // Принимаем пакеты CAN..
   if(can_read(&rxFrame)) {
-          handle_rx_message(rxFrame); //печатаем содержимое пакета
+      handle_rx_message(rxFrame); //печатаем содержимое пакета
+      if(rxFrame.identifier == 0x7DF && rxFrame.data[2]==5){  //пришел запрос на ECU, PID=5
+          doSendFrame = true; //команда - послать ответ..
+      }
   }
 }
 
-//Посылаем запрос по шине CAN для Service=1 (параметр=PID)
+//Посылаем ответ по шине CAN для Service=1 (параметр=PID)
 //каждая станция CAN должна иметь свой адрес на передачу !!!
-void sendObdFrame(uint8_t obdId) {
+void sendRespFrame(uint8_t obdId) {
 	twai_message_t obdFrame = { 0 };  //структура twai_messae_t инициализируем нулями
 	obdFrame.identifier = 0x7E8; //адрес-ответ ECU OBDII (на запрос адрес: 0x7DF)
 	obdFrame.extd = 0; //формат 11-бит
 	obdFrame.data_length_code = 8; //OBD2 frame - всегда 8 байт !
 
-	obdFrame.data[0] = 2; //количество значимых байт во фрейме
-	obdFrame.data[1] = 1;     //Service OBD2
-	obdFrame.data[2] = obdId; //PID OBD2
-	obdFrame.data[3] = 0xAA;    // Best to use 0xAA (0b10101010) instead of 0
-	obdFrame.data[4] = 0xAA;    // CAN works better this way as it needs
-	obdFrame.data[5] = 0xAA;    // to avoid bit-stuffing
+	obdFrame.data[0] = 3; //количество значимых байт во фрейме ответа
+	obdFrame.data[1] = 0x41; //ответ на mode=1
+	obdFrame.data[2] = 0x05;  //повторяем PID
+	obdFrame.data[3] = 33+40; //temp+40
+	obdFrame.data[4] = 0xAA;
+	obdFrame.data[5] = 0xAA;
 	obdFrame.data[6] = 0xAA;
 	obdFrame.data[7] = 0xAA;
     // Accepts both pointers and references 
