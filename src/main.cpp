@@ -19,6 +19,7 @@ void sendRespFrame(uint8_t obdId);
 void handle_rx_message(twai_message_t& message);
 
 //Global Variables
+int collant = 0;
 unsigned long previousMillis = 0;
 unsigned long interval = 5000;  //5 sec.
 bool doSendFrame = false; //команда = послать ответ
@@ -65,6 +66,8 @@ void loop() {
 //Посылаем ответ по шине CAN для Service=1 (параметр=PID)
 //каждая станция CAN должна иметь свой адрес на передачу !!!
 void sendRespFrame(uint8_t obdId) {
+  //collant++;
+  if(collant++>120) collant = 0;
 	twai_message_t obdFrame = { 0 };  //структура twai_messae_t инициализируем нулями
 	obdFrame.identifier = 0x7E8; //адрес-ответ ECU OBDII (на запрос адрес: 0x7DF)
 	obdFrame.extd = 0; //формат 11-бит
@@ -73,7 +76,7 @@ void sendRespFrame(uint8_t obdId) {
 	obdFrame.data[0] = 3; //количество значимых байт во фрейме ответа
 	obdFrame.data[1] = 0x41; //ответ на mode=1
 	obdFrame.data[2] = 0x05;  //повторяем PID
-	obdFrame.data[3] = 33+40; //temp+40
+	obdFrame.data[3] = collant+40; //temp+40
 	obdFrame.data[4] = 0xAA;
 	obdFrame.data[5] = 0xAA;
 	obdFrame.data[6] = 0xAA;
