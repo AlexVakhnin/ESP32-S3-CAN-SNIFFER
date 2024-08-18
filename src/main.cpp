@@ -19,10 +19,11 @@ void sendRespFrame(uint8_t obdId);
 void handle_rx_message(twai_message_t& message);
 
 //Global Variables
-int collant = 0;
+int collant = 23;
 unsigned long previousMillis = 0;
 unsigned long interval = 5000;  //5 sec.
 bool doSendFrame = false; //команда = послать ответ
+int repeat_counter = 3;
 
 void setup() {
 
@@ -66,8 +67,12 @@ void loop() {
 //Посылаем ответ по шине CAN для Service=1 (параметр=PID)
 //каждая станция CAN должна иметь свой адрес на передачу !!!
 void sendRespFrame(uint8_t obdId) {
-  //collant++;
-  if(collant++>120) collant = 0;
+
+  //имитатор ECU автомобиля
+  if(--repeat_counter<=0){collant++;repeat_counter=3;}//повторяем..
+  if(collant>100) collant = 23;
+  if(collant>37 && collant<50) collant = 90;
+
 	twai_message_t obdFrame = { 0 };  //структура twai_messae_t инициализируем нулями
 	obdFrame.identifier = 0x7E8; //адрес-ответ ECU OBDII (на запрос адрес: 0x7DF)
 	obdFrame.extd = 0; //формат 11-бит
